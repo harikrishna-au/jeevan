@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_129320e81984761c231d0280aa52f3b5 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_129320e81984761c231d0280aa52f3b5" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_129320e81984761c231d0280aa52f3b5 = L.map(
+                "map_129320e81984761c231d0280aa52f3b5",
+                {
+                    center: [18.3512956, 83.9041724],
+                    crs: L.CRS.EPSG3857,
+                    zoom: 12,
+                    zoomControl: true,
+                    preferCanvas: false,
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_96a9e6cdfdc850a18682f3660244431a = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {"attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors", "detectRetina": false, "maxNativeZoom": 19, "maxZoom": 19, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            );
+        
+    
+            tile_layer_96a9e6cdfdc850a18682f3660244431a.addTo(map_129320e81984761c231d0280aa52f3b5);
+        
+    
+            var marker_6f52ba731d4e1e0301bdf3b7ba973380 = L.marker(
+                [18.3512956, 83.9041724],
+                {}
+            ).addTo(map_129320e81984761c231d0280aa52f3b5);
+        
+    
+            var icon_556013de7d4a08c1da30c04799100142 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "info-sign", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_6f52ba731d4e1e0301bdf3b7ba973380.setIcon(icon_556013de7d4a08c1da30c04799100142);
+        
+    
+        var popup_6673787ec8488bc2dc2d5922d6cc04aa = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_e1f8e9bc43ee58352c650cef8f9bcddb = $(`<div id="html_e1f8e9bc43ee58352c650cef8f9bcddb" style="width: 100.0%; height: 100.0%;">Your Location</div>`)[0];
+                popup_6673787ec8488bc2dc2d5922d6cc04aa.setContent(html_e1f8e9bc43ee58352c650cef8f9bcddb);
+            
+        
+
+        marker_6f52ba731d4e1e0301bdf3b7ba973380.bindPopup(popup_6673787ec8488bc2dc2d5922d6cc04aa)
+        ;
+
+        
+    
+    
+            var marker_8da9c6fed2876672488189405123c7a6 = L.marker(
+                [18.371, 83.9036],
+                {}
+            ).addTo(map_129320e81984761c231d0280aa52f3b5);
+        
+    
+            var icon_3d23bfeb291261615353f7285a8b2e6d = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "info-sign", "iconColor": "white", "markerColor": "red", "prefix": "glyphicon"}
+            );
+            marker_8da9c6fed2876672488189405123c7a6.setIcon(icon_3d23bfeb291261615353f7285a8b2e6d);
+        
+    
+        var popup_fc3c82503db039184441695f7f3c1198 = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_7b5bb2a78c2bee1a8a5f59eef012df64 = $(`<div id="html_7b5bb2a78c2bee1a8a5f59eef012df64" style="width: 100.0%; height: 100.0%;">Nearest BO: Lankam BO (Distance: 2.18 km)</div>`)[0];
+                popup_fc3c82503db039184441695f7f3c1198.setContent(html_7b5bb2a78c2bee1a8a5f59eef012df64);
+            
+        
+
+        marker_8da9c6fed2876672488189405123c7a6.bindPopup(popup_fc3c82503db039184441695f7f3c1198)
+        ;
+
+        
+    
+    
+            var marker_b8595bbf4f3ec09efd607c5c2f491772 = L.marker(
+                [18.3523889, 77.6969167],
+                {}
+            ).addTo(map_129320e81984761c231d0280aa52f3b5);
+        
+    
+            var icon_d09039d98e65763483b35b78705ea5b2 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "info-sign", "iconColor": "white", "markerColor": "green", "prefix": "glyphicon"}
+            );
+            marker_b8595bbf4f3ec09efd607c5c2f491772.setIcon(icon_d09039d98e65763483b35b78705ea5b2);
+        
+    
+        var popup_938ec68e8bcd263eabad730b82a6b7af = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_3c40495842ab2d778cff8df8c3669ec6 = $(`<div id="html_3c40495842ab2d778cff8df8c3669ec6" style="width: 100.0%; height: 100.0%;">PO for BO's Pincode: Dusi Rs S.O (Pincode: 532484)</div>`)[0];
+                popup_938ec68e8bcd263eabad730b82a6b7af.setContent(html_3c40495842ab2d778cff8df8c3669ec6);
+            
+        
+
+        marker_b8595bbf4f3ec09efd607c5c2f491772.bindPopup(popup_938ec68e8bcd263eabad730b82a6b7af)
+        ;
+
+        
+    
+</script>
+</html>
