@@ -3,13 +3,14 @@ import folium
 from folium.plugins import MarkerCluster
 import pandas as pd
 import requests
+from address_parser import parse_address
 from geopy.distance import geodesic
 
 
 app = Flask(__name__)
-
+api_key = 'AIzaSyBMQPryqr_OhPX4lUtLBjB4YADGKJtUXkA'
 # Load and prepare the dataset
-df = pd.read_csv('SKLM.csv')
+df = pd.read_csv('VSKP.csv')
 df = df.dropna(subset=['Latitude', 'Longitude'])
 
 # Ensure Latitude and Longitude are valid
@@ -58,14 +59,60 @@ def find_po_by_pincode(pincode, df):
 
 # Home route to render the form
 @app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    parsed_address = None
+    user_map = None
 
-# API to handle form submission and process data
-@app.route('/get_map', methods=['POST'])
+    if request.method == 'POST':
+        address = request.form['address']
+
+        # Parse the address using Google Maps API
+        parsed_address = parse_address(address)
+
+        # Geocode the address for map generation
+        user_lat, user_lon = geocode_address_google(address, api_key)
+        if user_lat is not None and user_lon is not None:
+            map_center = [user_lat, user_lon]
+            mymap = folium.Map(location=map_center, zoom_start=12)
+
+            # Mark user's location
+            folium.Marker(
+                location=[user_lat, user_lon],
+                popup="Your Location",
+                icon=folium.Icon(color='blue', icon='info-sign')
+            ).add_to(mymap)
+
+            # Find nearest BO
+            nearest_bo, distance_to_bo = find_nearest_bo(user_lat, user_lon, df)
+
+            if nearest_bo is not None:
+                folium.Marker(
+                    location=[nearest_bo['Latitude'], nearest_bo['Longitude']],
+                    popup=f"Nearest BO: {nearest_bo['OfficeName']} (Distance: {distance_to_bo:.2f} km)",
+                    icon=folium.Icon(color='red', icon='info-sign')
+                ).add_to(mymap)
+
+                # Find PO with the same Pincode as the nearest BO
+                po_row = find_po_by_pincode(nearest_bo['Pincode'], df)
+
+                if not po_row.empty:
+                    po = po_row.iloc[0]  # Take the first PO if there are multiple
+                    folium.Marker(
+                        location=[po['Latitude'], po['Longitude']],
+                        popup=f"PO for BO's Pincode: {po['OfficeName']} (Pincode: {po['Pincode']})",
+                        icon=folium.Icon(color='green', icon='info-sign')
+                    ).add_to(mymap)
+
+            # Save map to HTML and pass to the template
+            user_map = 'map.html'
+            mymap.save(f'static/{user_map}')
+
+    return render_template('index.html', parsed_address=parsed_address, user_map=user_map)
+
 def get_map():
     user_address = request.form['address']
-    api_key = 'AIzaSyBMQPryqr_OhPX4lUtLBjB4YADGKJtUXkA'
+    
     
     user_lat, user_lon = geocode_address_google(user_address, api_key)
 

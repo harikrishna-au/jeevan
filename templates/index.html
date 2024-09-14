@@ -1,10 +1,9 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Find Nearest Office</title>
+    <title>Address Parser and Nearest Office Finder</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -26,6 +25,7 @@
         form {
             display: flex;
             flex-direction: column;
+            margin-bottom: 30px;
         }
         input[type="text"] {
             padding: 10px;
@@ -49,19 +49,37 @@
         .map-container {
             margin-top: 20px;
         }
+        .address-container {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Find Your Nearest Business Office</h1>
-        <form action="/get_map" method="POST">
+        <h1>Address Parser and Nearest Business Office Finder</h1>
+        
+        <!-- Address parsing form -->
+        <form action="/" method="POST">
             <input type="text" name="address" placeholder="Enter your address" required>
-            <input type="submit" value="Find">
+            <input type="submit" value="Parse Address and Find Nearest Office">
         </form>
+
+        <!-- Display parsed address -->
+        {% if parsed_address %}
+            <div class="address-container">
+                <h2>Parsed Address:</h2>
+                <ul>
+                    {% for key, value in parsed_address.items() %}
+                        <li><strong>{{ key }}:</strong> {{ value }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <!-- Display map after form submission -->
         <div class="map-container">
-            <!-- The map will be inserted here after form submission -->
-            {% if map %}
-            <iframe src="{{ map }}" width="100%" height="500"></iframe>
+            {% if user_map %}
+                <iframe src="/static/{{ user_map }}" width="100%" height="500"></iframe>
             {% endif %}
         </div>
     </div>
