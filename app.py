@@ -1,201 +1,157 @@
 from flask import Flask, render_template, request, jsonify
 import folium
-import sqlite3
-from geopy.distance import geodesic
-import googlemaps
+from folium.plugins import MarkerCluster
+import pandas as pd
 import requests
+from address_parser import parse_address
+from geopy.distance import geodesic
+from address_module import address_bp, extract_address_components
+
 
 app = Flask(__name__)
-gmaps = googlemaps.Client(key='AIzaSyBMQPryqr_OhPX4lUtLBjB4YADGKJtUXkA')  # Replace with your actual API key
+app.register_blueprint(address_bp)
+api_key = 'AIzaSyBMQPryqr_OhPX4lUtLBjB4YADGKJtUXkA'
+# Load and prepare the dataset
+df = pd.read_csv('VSKP.csv')
+df = df.dropna(subset=['Latitude', 'Longitude'])
 
-def query_db(query, args=(), one=False):
-    conn = sqlite3.connect('bo_po_data.db')
-    cur = conn.cursor()
-    cur.execute(query, args)
-    rv = cur.fetchall()
-    conn.close()
-    return (rv[0] if rv else None) if one else rv
+# Ensure Latitude and Longitude are valid
+df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
+df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
+df = df[(df['Latitude'].between(-90, 90)) & (df['Longitude'].between(-180, 180))]
 
-def geocode_address_google(address):
-    geocode_result = gmaps.geocode(address)
-    
-    if not geocode_result:
-        return None, None
+# Google Geocoding API
+def geocode_address_google(address, api_key):
+    base_url = 'https://maps.googleapis.com/maps/api/geocode/json'
+    params = {'address': address, 'key': api_key}
+    response = requests.get(base_url, params=params)
+    results = response.json()
 
-    location = geocode_result[0]['geometry']['location']
-    lat, lng = location['lat'], location['lng']
+    if results['status'] == 'OK':
+        location = results['results'][0]['geometry']['location']
+        lat, lng = location['lat'], location['lng']
 
-    if -90 <= lat <= 90 and -180 <= lng <= 180:
-        return lat, lng
+        # Validate the lat/lon returned by the API
+        if -90 <= lat <= 90 and -180 <= lng <= 180:
+            return lat, lng
+        else:
+            return None, None
     else:
         return None, None
 
-# Function to parse the address and extract components
-def parse_address(address):
-    geocode_result = gmaps.geocode(address)
-    
-    if not geocode_result:
-        return None
-
-    components = geocode_result[0]['address_components']
-
-    address_parts = {
-        'Flat No.': '',
-        'Floor': '',
-        'Building Number': '',
-        'Street': '',
-        'City': '',
-        'State': '',
-        'Pincode': ''
-    }
-
-    for component in components:
-        if 'street_number' in component['types']:
-            address_parts['Building Number'] = component['long_name']
-        elif 'route' in component['types']:
-            address_parts['Street'] = component['long_name']
-        elif 'locality' in component['types']:
-            address_parts['City'] = component['long_name']
-        elif 'administrative_area_level_1' in component['types']:
-            address_parts['State'] = component['long_name']
-        elif 'postal_code' in component['types']:
-            address_parts['Pincode'] = component['long_name']
-
-    return address_parts
-
-def find_nearest_po(lat, lon):
-    nearest_po = None
-    min_distance = float('inf')
-    pos = query_db("SELECT * FROM postal_data WHERE OfficeType='PO'")
-    if not pos:
-        print("No POs found in the database.")
-        return None, None  # No POs available
-
-    for po in pos:
-        try:
-            po_lat = float(po[9])  # Latitude at index 9
-            po_lon = float(po[10])  # Longitude at index 10
-
-            po_location = (po_lat, po_lon)
-            distance = geodesic((lat, lon), po_location).km
-
-            # Check if this PO is closer than the previously found ones
-            if distance < min_distance:
-                min_distance = distance
-                nearest_po = po
-
-        except (ValueError, TypeError):
-            # Catch the exception if coordinates are not valid numbers
-            print(f"Skipping PO with invalid coordinates: {po}")
-            continue
-
-    if nearest_po:
-        print(f"Nearest PO: {nearest_po[3]}, Distance: {min_distance:.2f} km")
-    else:
-        print("No valid PO found.")
-
-    return nearest_po, min_distance
-
-def find_nearest_bo(lat, lon):
+# Find nearest BO based on coordinates
+def find_nearest_bo(lat, lon, df):
     nearest_bo = None
     min_distance = float('inf')
-    bos = query_db("SELECT * FROM postal_data WHERE OfficeType='BO'")
-    if not bos:
-        print("No BOs found in the database.")
-        return None, None  # No BOs available
 
-    for bo in bos:
-        try:
-            bo_lat = float(bo[9])  # Latitude at index 9
-            bo_lon = float(bo[10])  # Longitude at index 10
+    for i, row in df[df['OfficeType'] == 'BO'].iterrows():
+        bo_location = (row['Latitude'], row['Longitude'])
+        distance = geodesic((lat, lon), bo_location).km
 
-            bo_location = (bo_lat, bo_lon)
-            distance = geodesic((lat, lon), bo_location).km
-            if distance < min_distance:
-                min_distance = distance
-                nearest_bo = bo
-
-        except (ValueError, TypeError):
-            # Catch the exception if coordinates are not valid numbers
-            print(f"Skipping BO with invalid coordinates: {bo}")
-            continue
-
-    if nearest_bo:
-        print(f"Nearest BO: {nearest_bo[3]}, Distance: {min_distance:.2f} km")
-    else:
-        print("No valid BO found.")
+        if distance < min_distance:
+            min_distance = distance
+            nearest_bo = row
 
     return nearest_bo, min_distance
 
+# Find PO with matching Pincode based on the coordinates
+def find_po_by_pincode(pincode, df):
+    po_row = df[(df['OfficeType'] == 'PO') & (df['Pincode'] == pincode)]
+    return po_row
+
+# Home route to render the form
 @app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    parsed_address = None
+    user_map = None
+    arranged_address = None
+    if request.method == 'POST':
+        address = request.form['address']
 
-@app.route('/get_map', methods=['POST'])
+        # Parse the address using Google Maps API
+        parsed_address = parse_address(address)
+        arranged_address = extract_address_components(address)
+
+        # Geocode the address for map generation
+        user_lat, user_lon = geocode_address_google(address, api_key)
+        if user_lat is not None and user_lon is not None:
+            map_center = [user_lat, user_lon]
+            mymap = folium.Map(location=map_center, zoom_start=12)
+
+            # Mark user's location
+            folium.Marker(
+                location=[user_lat, user_lon],
+                popup="Your Location",
+                icon=folium.Icon(color='blue', icon='info-sign')
+            ).add_to(mymap)
+
+            # Find nearest BO
+            nearest_bo, distance_to_bo = find_nearest_bo(user_lat, user_lon, df)
+
+            if nearest_bo is not None:
+                folium.Marker(
+                    location=[nearest_bo['Latitude'], nearest_bo['Longitude']],
+                    popup=f"Nearest BO: {nearest_bo['OfficeName']} (Distance: {distance_to_bo:.2f} km)",
+                    icon=folium.Icon(color='red', icon='info-sign')
+                ).add_to(mymap)
+
+                # Find PO with the same Pincode as the nearest BO
+                po_row = find_po_by_pincode(nearest_bo['Pincode'], df)
+
+                if not po_row.empty:
+                    po = po_row.iloc[0]  # Take the first PO if there are multiple
+                    folium.Marker(
+                        location=[po['Latitude'], po['Longitude']],
+                        popup=f"PO for BO's Pincode: {po['OfficeName']} (Pincode: {po['Pincode']})",
+                        icon=folium.Icon(color='green', icon='info-sign')
+                    ).add_to(mymap)
+
+            # Save map to HTML and pass to the template
+            user_map = 'map.html'
+            mymap.save(f'static/{user_map}')
+
+    return render_template('index.html', parsed_address=parsed_address, user_map=user_map,arranged_address=arranged_address)
+
 def get_map():
-    full_address = request.form['address']
-    address_parts = parse_address(full_address)
+    user_address = request.form['address']
     
-    if not address_parts:
-        return jsonify({'error': 'Address not found or invalid.'}), 400
-
-    formatted_address = f"{address_parts.get('Flat No', '')}, {address_parts.get('Street', '')}, {address_parts.get('City', '')}, {address_parts.get('State', '')}, {address_parts.get('Pincode', '')}"
-    user_lat, user_lon = geocode_address_google(formatted_address)
+    
+    user_lat, user_lon = geocode_address_google(user_address, api_key)
 
     if user_lat is not None and user_lon is not None:
         map_center = [user_lat, user_lon]
         mymap = folium.Map(location=map_center, zoom_start=12)
 
+        # Mark user's location
         folium.Marker(
             location=[user_lat, user_lon],
-            popup=f"Your Location",
+            popup="Your Location",
             icon=folium.Icon(color='blue', icon='info-sign')
         ).add_to(mymap)
-        nearest_bo, distance_to_bo = find_nearest_bo(user_lat, user_lon)
+
+        # Find nearest BO
+        nearest_bo, distance_to_bo = find_nearest_bo(user_lat, user_lon, df)
 
         if nearest_bo is not None:
-            nearest_bo_details = (f"Nearest BO: {nearest_bo[3]}<br>"  # BO Name at index 3
-                                  f"Division: {nearest_bo[2]}<br>"   # DivisionName at index 2
-                                  f"Circle: {nearest_bo[1]}<br>"     # CircleName at index 1
-                                  f"District: {nearest_bo[7]}<br>"   # District at index 7
-                                  f"State: {nearest_bo[8]}<br>"      # StateName at index 8
-                                  f"Pincode: {nearest_bo[5]}<br>"    # Pincode at index 5
-                                  f"Distance: {distance_to_bo:.2f} km")
-            try:
-                bo_lat = float(nearest_bo[9])
-                bo_lon = float(nearest_bo[10])
+            folium.Marker(
+                location=[nearest_bo['Latitude'], nearest_bo['Longitude']],
+                popup=f"Nearest BO: {nearest_bo['OfficeName']} (Distance: {distance_to_bo:.2f} km)",
+                icon=folium.Icon(color='red', icon='info-sign')
+            ).add_to(mymap)
 
+            # Find PO with the same Pincode as the nearest BO
+            po_row = find_po_by_pincode(nearest_bo['Pincode'], df)
+            
+            if not po_row.empty:
+                po = po_row.iloc[0]  # Take the first PO if there are multiple
                 folium.Marker(
-                    location=[bo_lat, bo_lon],
-                    popup=nearest_bo_details,
-                    icon=folium.Icon(color='red', icon='info-sign')
-                ).add_to(mymap)
-            except ValueError:
-                print(f"Skipping BO marker due to invalid coordinates: {nearest_bo}")
-        nearest_po, distance_to_po = find_nearest_po(user_lat, user_lon)
-
-        if nearest_po is not None:
-            nearest_po_details = (f"Nearest PO: {nearest_po[3]}<br>"  # PO Name at index 3
-                                  f"Division: {nearest_po[2]}<br>"   # DivisionName at index 2
-                                  f"Circle: {nearest_po[1]}<br>"     # CircleName at index 1
-                                  f"District: {nearest_po[7]}<br>"   # District at index 7
-                                  f"State: {nearest_po[8]}<br>"      # StateName at index 8
-                                  f"Pincode: {nearest_po[5]}<br>"    # Pincode at index 5
-                                  f"Distance: {distance_to_po:.2f} km")
-
-            try:
-                po_lat = float(nearest_po[9])
-                po_lon = float(nearest_po[10])
-
-                folium.Marker(
-                    location=[po_lat, po_lon],
-                    popup=nearest_po_details,
+                    location=[po['Latitude'], po['Longitude']],
+                    popup=f"PO for BO's Pincode: {po['OfficeName']} (Pincode: {po['Pincode']})",
                     icon=folium.Icon(color='green', icon='info-sign')
                 ).add_to(mymap)
-            except ValueError:
-                print(f"Skipping PO marker due to invalid coordinates: {nearest_po}")
 
-        # Save the map to an HTML file and return it as a response
+        # Save to HTML and return it as a response
         mymap.save('templates/map.html')
         return render_template('map.html')
     else:
@@ -203,4 +159,3 @@ def get_map():
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
-
