@@ -12,37 +12,37 @@ address_bp = Blueprint('address_bp', __name__)
 def extract_address_components(address):
     doc = nlp(address)
     components = {
-        'door_no': None,
-        'office_or_house': None,
-        'street_or_landmark': None,
-        'village': None,
-        'mandal': None,
-        'district': None,
-        'pincode': None
+        'Door No.': '',
+        'Office or House': '',
+        'Street or Landmark': '',
+        'City': '',
+        'District': '',
+        'Pincode': ''
     }
     
     for ent in doc.ents:
         if ent.label_ == "CARDINAL":
-            components['door_no'] = ent.text
+            components['Door No.'] = ent.text
         elif ent.label_ == "GPE":
-            if not components['village']:
-                components['village'] = ent.text
-            elif not components['district']:
-                components['district'] = ent.text
+            if not components['City']:
+                components['City'] = ent.text
+            elif not components['District']:
+                components['District'] = ent.text
         elif ent.label_ == "LOC":
-            if not components['street_or_landmark']:
-                components['street_or_landmark'] = ent.text
+            if not components['Street or Landmark']:
+                components['Street or Landmark'] = ent.text
         elif ent.label_ == "ORG":
-            components['office_or_house'] = ent.text
+            components['Office or House'] = ent.text
         elif ent.label_ == "FAC":
-            if not components['office_or_house']:
-                components['office_or_house'] = ent.text
+            if not components['Office or House']:
+                components['Office or House'] = ent.text
 
     pincode_match = re.search(r'\b\d{6}\b', address)
     if pincode_match:
-        components['pincode'] = pincode_match.group(0)
+        components['Pincode'] = pincode_match.group(0)
 
     return components
+
 
 # Route for handling map retrieval (on clicking "Find")
 @address_bp.route('/get_map', methods=['POST'])
